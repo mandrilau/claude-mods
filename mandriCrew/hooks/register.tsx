@@ -64,7 +64,7 @@ const isOnBar = async ($: EngineInterface): Promise<boolean> => {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'crew', description: 'Show the details of the agents Claude started' })
+    await $.command.register({ name: 'mandriCrew', description: 'Show the details of the agents Claude started' })
     // While any crab works: tick its clock, and take the engine's word for agents that ended unseen.
     $.clock.every(1000, () => {
       void (async () => {
@@ -91,7 +91,7 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'crew' }, async $ => {
+  on('command.run', { command: 'mandriCrew' }, async $ => {
     const list = await read($, agents)
     const pick = (await read($, selected)) || list[list.length - 1]?.id || ''
     await openDetails($, pick)
