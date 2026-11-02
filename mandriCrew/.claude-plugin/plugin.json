@@ -1,0 +1,7 @@
+{
+  "name": "mandricrew",
+  "version": "0.1.1",
+  "description": "A row of Claude crabs above the prompt, one per subagent: hover for what each is doing, click for a details pane.",
+  "author": { "name": "Guilherme Afonso" },
+  "types": "./types/index.d.ts"
+}

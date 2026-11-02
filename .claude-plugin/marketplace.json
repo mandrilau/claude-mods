@@ -1,0 +1,9 @@
+{
+  "name": "mandrilau-mods",
+  "owner": { "name": "Guilherme Afonso" },
+  "metadata": { "description": "Guilherme's own Claude Code mods, used locally." },
+  "plugins": [
+    { "name": "mandribar", "source": "./mandriBar", "description": "A progress bar for every prompt, with an animated Claude crab." },
+    { "name": "mandricrew", "source": "./mandriCrew", "description": "A crab per subagent, with hover info and a details pane." }
+  ]
+}
