@@ -70,7 +70,7 @@ export const crabCard = (a: CrewAgent, at: number, scale = 1): string => {
 type Ui = ReturnType<EngineInterface['ui']['resolve']>
 
 // The details pane: the picked agent in full, and every other agent to switch to.
-export const crewPane = (
+export function crewPane(
   $: EngineInterface,
   ui: Ui,
   surface: string,
@@ -78,7 +78,7 @@ export const crewPane = (
   id: string,
   at: number,
   pick: (id: string) => void,
-) => {
+) {
   const { Box, Text, Button } = ui
   const a = list.find(x => x.id === id || x.agentId === id) ?? list[list.length - 1]
   if (!a) return <Text dimColor>No agents yet. When Claude starts subagents, they show up here.</Text>

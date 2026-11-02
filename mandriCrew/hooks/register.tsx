@@ -56,9 +56,9 @@ const openDetails = async ($: EngineInterface, id: string) => {
 // mandriBar draws these crabs at the end of its own bar while its bar shows:
 // this row then stays out of the way. Read loosely, as mandriBar may not be loaded.
 const isOnBar = async ($: EngineInterface): Promise<boolean> => {
-  const get = $.state.get as unknown as (ref: { plugin: string; key: string }) => Promise<{ value?: unknown }>
-  const barNow = await get({ plugin: 'mandribar', key: 'now' }).catch(() => ({ value: undefined }))
-  const barHidden = await get({ plugin: 'mandribar', key: 'isHidden' }).catch(() => ({ value: undefined }))
+  const none = { value: undefined }
+  const barNow: { value?: unknown } = await $.state.get({ plugin: 'mandribar', key: 'now' } as const).catch(() => none)
+  const barHidden: { value?: unknown } = await $.state.get({ plugin: 'mandribar', key: 'isHidden' } as const).catch(() => none)
   return typeof barNow.value === 'number' && barNow.value > 0 && barHidden.value !== true
 }
 

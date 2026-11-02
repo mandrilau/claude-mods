@@ -52,10 +52,10 @@ const crewSelected = atom({ plugin: 'mandribar', key: 'crewSelected' } as const,
 
 // mandriCrew's agents and current prompt, read loosely: the crew mod may not be loaded.
 const readCrew = async ($: EngineInterface): Promise<{ all: CrewAgent[]; current: CrewAgent[]; at: number }> => {
-  const get = $.state.get as unknown as (ref: { plugin: string; key: string }) => Promise<{ value?: unknown }>
-  const agents = await get({ plugin: 'mandricrew', key: 'agents' }).catch(() => ({ value: undefined }))
-  const prompt = await get({ plugin: 'mandricrew', key: 'promptId' }).catch(() => ({ value: undefined }))
-  const tick = await get({ plugin: 'mandricrew', key: 'now' }).catch(() => ({ value: undefined }))
+  const none = { value: undefined }
+  const agents: { value?: unknown } = await $.state.get({ plugin: 'mandricrew', key: 'agents' } as const).catch(() => none)
+  const prompt: { value?: unknown } = await $.state.get({ plugin: 'mandricrew', key: 'promptId' } as const).catch(() => none)
+  const tick: { value?: unknown } = await $.state.get({ plugin: 'mandricrew', key: 'now' } as const).catch(() => none)
   // A shaped value reads back wrapped as { shape, value }.
   const raw = agents.value && typeof agents.value === 'object' && 'value' in agents.value ? (agents.value as { value: unknown }).value : agents.value
   const all = Array.isArray(raw) ? (raw as CrewAgent[]) : []

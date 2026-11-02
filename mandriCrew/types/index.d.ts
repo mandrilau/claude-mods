@@ -37,5 +37,10 @@ declare module 'claude-code' {
       selected: string
       isHidden: boolean
     }
+    // mandriBar's values this mod reads (its own contract declares them too).
+    mandribar: {
+      now: number
+      isHidden: boolean
+    }
   }
 }

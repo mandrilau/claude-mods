@@ -92,5 +92,11 @@ declare module 'claude-code' {
       isHidden: boolean
       crewSelected: string
     }
+    // mandriCrew's values this mod reads (its own contract declares them too).
+    mandricrew: {
+      agents: Shaped<CrewAgent[]>
+      promptId: string
+      now: number
+    }
   }
 }

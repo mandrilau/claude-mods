@@ -1,6 +1,6 @@
 {
   "name": "mandribar",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A progress bar above the prompt for every prompt, with an animated Claude crab riding the fill and a /mandribar pane to customise it.",
   "author": { "name": "Guilherme Afonso" },
   "types": "./types/index.d.ts"
