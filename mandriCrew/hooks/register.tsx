@@ -206,7 +206,10 @@ export const register: Register = on => {
             {shown.map(a => (
               <Box key={`mandricrew-${a.id}`} flexDirection="column" alignItems="center">
                 <Svg source={crabCard(a, at)} alt={`${a.type}: ${a.description}, ${statusLine(a)}`} width={CRAB_BOX_W} height={CRAB_BOX_H} isInteractive />
-                <Button key={`mandricrew-open-${a.id}`} label={shortName(a)} plain dimColor={a.status !== 'running'} onPress={() => void openDetails($, a.id)} />
+                {/* Only the crab shows; its name button appears below it while the crab is hovered. */}
+                <Box position="absolute" top={2} display="none" hover={{ display: 'flex' }}>
+                  <Button key={`mandricrew-open-${a.id}`} label={shortName(a)} plain onPress={() => void openDetails($, a.id)} />
+                </Box>
               </Box>
             ))}
             {dismiss}
