@@ -250,10 +250,8 @@ export const register: Register = on => {
       const crew = (await readCrew($)).current
       const shown = crew.slice(-MAX_CREW)
       const crewAt = Math.max(at, ...crew.map(a => a.startedAt))
-      // Each crab and its name take about 44px of the row; the bar gives them that room.
-      const crewW = shown.length ? shown.length * 44 + (crew.length > shown.length ? 28 : 0) + 8 : 0
       // The desktop draws about 8.6px per reported column; ⚙ and ✕ take about 84px. The bar takes the rest.
-      const width = Math.max(180, Math.min(2400, Math.floor((e.props.bodyColumns || 100) * 8.6) - 84 - crewW))
+      const width = Math.max(180, Math.min(2400, Math.floor((e.props.bodyColumns || 100) * 8.6) - 84))
       const crabs = shown.map(a => (
         <Box key={`mandribar-crew-${a.id}`} flexDirection="column" alignItems="center">
           <Svg source={crabCard(a, crewAt)} alt={`${a.type}: ${a.description}, ${statusLine(a)}`} width={CRAB_BOX_W} height={CRAB_BOX_H} isInteractive />
@@ -262,10 +260,18 @@ export const register: Register = on => {
       ))
       // The row's panel sits behind it, drawn first and placed absolutely, so the row draws over it.
       const hasPanel = s.panelStyle !== 'none'
-      const rowW = width + 84 + crewW
-      const rowH = Math.max(heightOf(s), shown.length ? CRAB_BOX_H + 20 : 0) + 8
+      const rowW = width + 84
+      const rowH = heightOf(s) + 8
       return (
         <Box flexDirection="column">
+          {/* The crew sits in its own row above the bar, at the right. */}
+          {shown.length > 0 && (
+            <Box flexDirection="row" justifyContent="flex-end" alignItems="flex-end" gap={1}>
+              {crew.length > shown.length && <Text dimColor>+{crew.length - shown.length}</Text>}
+              {crabs}
+            </Box>
+          )}
+          <Box flexDirection="column">
           {hasPanel && (
             <Box position="absolute" top={0} left={0}>
               <Svg source={panelSvg(s, rowW, rowH)} alt="" width={rowW} height={rowH} />
@@ -280,8 +286,7 @@ export const register: Register = on => {
             />
             {gear}
             {dismiss}
-            {crew.length > shown.length && <Text dimColor>+{crew.length - shown.length}</Text>}
-            {crabs}
+          </Box>
           </Box>
           {below}
         </Box>
