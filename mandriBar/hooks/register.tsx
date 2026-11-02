@@ -66,6 +66,13 @@ const COLOR_SLOTS: { key: ColorKey; label: string; shows: (s: BarSettings) => bo
   { key: 'panel2', label: 'Row background (gradient end)', shows: s => s.panelStyle === 'gradient' },
 ]
 
+// A palette chip: the colour as a rounded square, ringed when it is the one in use.
+const SWATCH = 24
+const swatchSvg = (hex: string, isCurrent: boolean): string =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${SWATCH}" height="${SWATCH}" viewBox="0 0 24 24"><title>${hex}</title>` +
+  `<style>.c{transition:transform .12s;transform-origin:50% 50%}svg:hover .c{transform:scale(1.12)}</style>` +
+  `<rect class="c" x="3" y="3" width="18" height="18" rx="5" fill="${hex}" stroke="${isCurrent ? '#ffffff' : 'rgba(255,255,255,.18)'}" stroke-width="${isCurrent ? 2 : 1}"/></svg>`
+
 // Swatches, one row per family: neon, warm, cool, and dark ones for backgrounds.
 const PALETTE: readonly (readonly string[])[] = [
   ['#c792ea', '#82aaff', '#7fdbca', '#addb67', '#ecc48d', '#f78c6c', '#ff5874', '#ef5350', '#d6deeb', '#637777'],
@@ -420,13 +427,18 @@ export const register: Register = on => {
           options={COLOR_SLOTS.filter(c => c.shows(s)).map(c => ({ value: c.key, label: c.label }))}
           onSelect={value => void update($, paletteTarget, () => value)}
         />
-        <Box flexDirection="column">
+        <Box flexDirection="column" gap={1}>
           {PALETTE.map((row, i) => (
-            <Box key={`mandribar-palette-row-${i}`} flexDirection="row">
+            <Box key={`mandribar-palette-row-${i}`} flexDirection="row" gap={1}>
               {row.map(hex => (
-                <Button key={`mandribar-swatch-${hex}`} plain onPress={() => void setColor(hex)}>
-                  <Text color={hex}>{hex === current ? '▣▣' : '██'}</Text>
-                </Button>
+                <Box key={`mandribar-swatch-${hex}`} flexDirection="column" alignItems="center">
+                  {isDesktop && 'Svg' in ui ? (
+                    <ui.Svg source={swatchSvg(hex, hex === current)} alt={hex} width={SWATCH} height={SWATCH} isInteractive />
+                  ) : (
+                    <Text color={hex}>██</Text>
+                  )}
+                  <Button key={`mandribar-pick-${hex}`} label={hex === current ? '✓' : '·'} plain onPress={() => void setColor(hex)} />
+                </Box>
               ))}
             </Box>
           ))}
