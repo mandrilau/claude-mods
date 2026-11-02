@@ -91,6 +91,7 @@ declare module 'claude-code' {
       context: number
       isHidden: boolean
       crewSelected: string
+      paletteTarget: string
     }
     // mandriCrew's values this mod reads (its own contract declares them too).
     mandricrew: {

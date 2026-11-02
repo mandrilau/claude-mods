@@ -49,6 +49,30 @@ const stats = atom({ plugin: 'mandribar', key: 'stats' } as const, EMPTY_STATS, 
 const context = atom({ plugin: 'mandribar', key: 'context' } as const, -1)
 const isHidden = atom({ plugin: 'mandribar', key: 'isHidden' } as const, false)
 const crewSelected = atom({ plugin: 'mandribar', key: 'crewSelected' } as const, '')
+// Which colour the settings palette paints.
+const paletteTarget = atom({ plugin: 'mandribar', key: 'paletteTarget' } as const, 'accent')
+
+type ColorKey = 'accent' | 'done' | 'track' | 'track2' | 'panel' | 'panel2' | 'fill' | 'crab'
+
+// The colours the palette can paint, each shown only while it is in use.
+const COLOR_SLOTS: { key: ColorKey; label: string; shows: (s: BarSettings) => boolean }[] = [
+  { key: 'accent', label: 'Bar (working)', shows: () => true },
+  { key: 'done', label: 'Bar (finished)', shows: () => true },
+  { key: 'fill', label: 'Fill base', shows: () => true },
+  { key: 'crab', label: 'Crab', shows: () => true },
+  { key: 'track', label: 'Bar background', shows: s => s.trackStyle !== 'transparent' },
+  { key: 'track2', label: 'Bar background (gradient end)', shows: s => s.trackStyle === 'gradient' },
+  { key: 'panel', label: 'Row background', shows: s => s.panelStyle !== 'none' },
+  { key: 'panel2', label: 'Row background (gradient end)', shows: s => s.panelStyle === 'gradient' },
+]
+
+// Swatches, one row per family: neon, warm, cool, and dark ones for backgrounds.
+const PALETTE: readonly (readonly string[])[] = [
+  ['#c792ea', '#82aaff', '#7fdbca', '#addb67', '#ecc48d', '#f78c6c', '#ff5874', '#ef5350', '#d6deeb', '#637777'],
+  ['#d97757', '#e8a27c', '#f5c542', '#ffd166', '#ff9f1c', '#ff6b35', '#e63946', '#b71c2c', '#7a4a26', '#5fbf8f'],
+  ['#00e5ff', '#2ec4b6', '#4cc9f0', '#4361ee', '#3a0ca3', '#7209b7', '#b5179e', '#f72585', '#bd93f9', '#ff79c6'],
+  ['#011627', '#0b2942', '#14336b', '#173f6b', '#1d3b53', '#1f1e1d', '#21222c', '#282a36', '#2c2c2b', '#1a1a1a'],
+]
 
 // mandriCrew's agents and current prompt, read loosely: the crew mod may not be loaded.
 const readCrew = async ($: EngineInterface): Promise<{ all: CrewAgent[]; current: CrewAgent[]; at: number }> => {
@@ -221,7 +245,8 @@ export const register: Register = on => {
       const crewAt = Math.max(at, ...crew.map(a => a.startedAt))
       // Each crab and its name take about 44px of the row; the bar gives them that room.
       const crewW = shown.length ? shown.length * 44 + (crew.length > shown.length ? 28 : 0) + 8 : 0
-      const width = Math.max(180, Math.min(1600, (e.props.bodyColumns || 100) * 8 - 96 - crewW))
+      // The desktop draws about 8.6px per reported column; ⚙ and ✕ take about 84px. The bar takes the rest.
+      const width = Math.max(180, Math.min(2400, Math.floor((e.props.bodyColumns || 100) * 8.6) - 84 - crewW))
       const crabs = shown.map(a => (
         <Box key={`mandribar-crew-${a.id}`} flexDirection="column" alignItems="center">
           <Svg source={crabCard(a, crewAt)} alt={`${a.type}: ${a.description}, ${statusLine(a)}`} width={CRAB_BOX_W} height={CRAB_BOX_H} isInteractive />
@@ -230,7 +255,7 @@ export const register: Register = on => {
       ))
       // The row's panel sits behind it, drawn first and placed absolutely, so the row draws over it.
       const hasPanel = s.panelStyle !== 'none'
-      const rowW = width + 96 + crewW
+      const rowW = width + 84 + crewW
       const rowH = Math.max(heightOf(s), shown.length ? CRAB_BOX_H + 20 : 0) + 8
       return (
         <Box flexDirection="column">
@@ -291,21 +316,11 @@ export const register: Register = on => {
     const level = levelOf(st.finished)
     const month = new Date(await $.clock.now()).getMonth()
 
-    const colorField = (key: 'accent' | 'done' | 'track' | 'track2' | 'panel' | 'panel2' | 'fill' | 'crab', label: string) => (
-      <Input
-        key={`mandribar-${key}`}
-        label={`${label} `}
-        placeholder="#rrggbb"
-        value={s[key]}
-        submitLabel="apply"
-        onSubmit={value => {
-          const v = value.trim()
-          const hex = /^#?[0-9a-fA-F]{6}$/.test(v) ? (v.startsWith('#') ? v : `#${v}`) : null
-          if (hex) void save($, prev => ({ ...prev, [key]: hex.toLowerCase(), preset: 'custom' }))
-          else $.ui.toast(`"${v}" is not a colour: use #rrggbb`)
-        }}
-      />
-    )
+    const slots = COLOR_SLOTS.filter(c => c.shows(s))
+    const picked = await read($, paletteTarget)
+    const target: ColorKey = slots.find(c => c.key === picked)?.key ?? 'accent'
+    const current = s[target]
+    const setColor = (hex: string) => save($, prev => ({ ...prev, [target]: hex, preset: 'custom' }))
     const onOff = (key: string, label: string, value: boolean, set: (v: boolean) => void, yes = 'On', no = 'Off') => (
       <Select
         key={key}
@@ -374,9 +389,6 @@ export const register: Register = on => {
             if (p) void save($, prev => ({ ...prev, ...p, preset: value }))
           }}
         />
-        <Text dimColor>Colours: type #rrggbb and press Enter.</Text>
-        {colorField('accent', 'Bar')}
-        {colorField('done', 'Done')}
         <Select
           key="mandribar-track-style"
           label="Bar background "
@@ -388,8 +400,6 @@ export const register: Register = on => {
           ]}
           onSelect={value => void save($, prev => ({ ...prev, trackStyle: value as TrackStyle }))}
         />
-        {s.trackStyle !== 'transparent' && colorField('track', s.trackStyle === 'gradient' ? 'Bar background from' : 'Bar background')}
-        {s.trackStyle === 'gradient' && colorField('track2', 'Bar background to')}
         <Select
           key="mandribar-panel-style"
           label="Row background "
@@ -401,10 +411,43 @@ export const register: Register = on => {
           ]}
           onSelect={value => void save($, prev => ({ ...prev, panelStyle: value as PanelStyle }))}
         />
-        {s.panelStyle !== 'none' && colorField('panel', s.panelStyle === 'gradient' ? 'Row background from' : 'Row background')}
-        {s.panelStyle === 'gradient' && colorField('panel2', 'Row background to')}
-        {colorField('fill', 'Fill (dark theme)')}
-        {colorField('crab', 'Crab')}
+
+        <Text bold>Colours</Text>
+        <Select
+          key="mandribar-palette-target"
+          label="Colour for "
+          value={target}
+          options={COLOR_SLOTS.filter(c => c.shows(s)).map(c => ({ value: c.key, label: c.label }))}
+          onSelect={value => void update($, paletteTarget, () => value)}
+        />
+        <Box flexDirection="column">
+          {PALETTE.map((row, i) => (
+            <Box key={`mandribar-palette-row-${i}`} flexDirection="row">
+              {row.map(hex => (
+                <Button key={`mandribar-swatch-${hex}`} plain onPress={() => void setColor(hex)}>
+                  <Text color={hex}>{hex === current ? '▣▣' : '██'}</Text>
+                </Button>
+              ))}
+            </Box>
+          ))}
+        </Box>
+        <Text>
+          <Text color={current}>████</Text> {current}
+        </Text>
+        <Input
+          key={`mandribar-hex-${target}`}
+          label="Custom "
+          placeholder="#rrggbb"
+          value={current}
+          submitLabel="apply"
+          onSubmit={value => {
+            const v = value.trim()
+            const hex = /^#?[0-9a-fA-F]{6}$/.test(v) ? (v.startsWith('#') ? v : `#${v}`) : null
+            if (hex) void setColor(hex.toLowerCase())
+            else $.ui.toast(`"${v}" is not a colour: use #rrggbb`)
+          }}
+        />
+
         <Select
           key="mandribar-particles"
           label="Particles "

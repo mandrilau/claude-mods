@@ -7,8 +7,9 @@ import type { Activity, Outfit } from '../types'
 const INK = '#1F1E1D'
 export const CRAB_W = 24
 export const CRAB_H = 18
-// How far hats and signs reach above the grid.
+// How far hats reach above the grid; the sign stays within 5.
 export const CRAB_HEADROOM = 9
+export const SIGN_HEADROOM = 5
 
 export type Face = 'normal' | 'happy' | 'sad' | 'sleep'
 
@@ -77,7 +78,7 @@ const PROPS: Record<Activity, (r: R) => string> = {
 
 // Held up in the right claw while Claude waits for your answer.
 const SIGN = (r: R): string =>
-  r(25, -1, 1, 8, '#7A4A26') + r(21, -9, 9, 8, '#fff8dc') + r(21, -9, 9, 1, '#e8d5b5') + r(25, -8, 2, 4, '#ef5350') + r(25, -3, 2, 1, '#ef5350')
+  r(25, 1, 1, 6, '#7A4A26') + r(21, -5, 9, 6, '#fff8dc') + r(21, -5, 9, 1, '#e8d5b5') + r(25, -4, 2, 2, '#ef5350') + r(25, -1, 2, 1, '#ef5350')
 
 const ZZZ = `<g class="zz"><text x="22" y="2" font-size="6" font-family="monospace" font-weight="700" fill="#d6deeb">z</text><text class="z2" x="26" y="-3" font-size="8" font-family="monospace" font-weight="700" fill="#d6deeb">Z</text></g>`
 

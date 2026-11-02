@@ -1,7 +1,7 @@
 // Drawing: the bar above the prompt and the history chart, each one SVG so the
 // desktop does not wrap its parts onto new lines.
 
-import { CRAB_CSS, CRAB_H, CRAB_HEADROOM, CRAB_W, crabSvg } from './crab'
+import { CRAB_CSS, CRAB_H, CRAB_HEADROOM, CRAB_W, SIGN_HEADROOM, crabSvg } from './crab'
 import type { CrabLook } from './crab'
 import { KIND_COLOR, duration, expectedOf, isFailed, isIdle, progressOf, statsText } from './model'
 import type { BarSettings, Particles, Run, Stats } from '../types'
@@ -87,7 +87,7 @@ const ramp = (id: string, c: string, from: number, to: number): string =>
   `<linearGradient id="${id}"><stop offset="0" stop-color="${c}" stop-opacity="${from}"/><stop offset=".7" stop-color="${c}" stop-opacity="${(from + to) / 2}"/><stop offset="1" stop-color="${c}" stop-opacity="${to}"/></linearGradient>`
 
 const smooth = (c: string, fillW: number, barY: number): Tex => ({
-  defs: ramp('sf', c, 0.05, 0.55),
+  defs: ramp('sf', c, 0.35, 0.95),
   css: '',
   body: `<rect x="0" y="${barY}" width="${fillW}" height="${BAR_H}" fill="url(#sf)"/>`,
 })
@@ -275,8 +275,11 @@ const METER_GAP = 3
 
 const scaleOf = (s: BarSettings): number => (s.crabPlace === 'inside' ? INSIDE_SCALE : 1)
 
+// Room above the crab: a hat needs the most, the sign a little; then as little as the crab's hop.
+const headroomOf = (s: BarSettings): number => (s.outfit === 'none' ? SIGN_HEADROOM : CRAB_HEADROOM)
+
 const barYOf = (s: BarSettings): number =>
-  s.crabPlace === 'inside' ? Math.ceil(CRAB_HEADROOM * INSIDE_SCALE + 4) : CRAB_HEADROOM + CRAB_H - 4 + 1
+  s.crabPlace === 'inside' ? Math.ceil(headroomOf(s) * INSIDE_SCALE + 4) : headroomOf(s) + CRAB_H - 6 + 1
 
 export const heightOf = (s: BarSettings): number => barYOf(s) + BAR_H + 1 + (s.contextMeter ? METER_GAP + METER_H : 0)
 
@@ -311,16 +314,16 @@ export const barSvg = (s: BarSettings, r: Run, at: number, W: number, context: n
   const crabW = CRAB_W * scale
   const crabH = CRAB_H * scale
   const crabX = Math.max(0, Math.min(BAR_W - crabW, fillW - crabW / 2))
-  const crabY = s.crabPlace === 'inside' ? barY + (BAR_H - crabH) / 2 - 1 : barY - CRAB_H + 4
+  const crabY = s.crabPlace === 'inside' ? barY + (BAR_H - crabH) / 2 - 1 : barY - CRAB_H + 6
   // The comet's head sits just behind the crab.
   const head = Math.max(0, s.crabPlace === 'inside' ? crabX + 3 : fillW - 2)
 
   // The fill: its base colour, the texture in the particle style's glow (or the
   // bar colour without particles), and the comet at the head.
-  const tex = textureOf(s, style ? GLOW[style] : color, fillW, barY, isDone)
+  const tex = textureOf(s, isDone || !style ? color : GLOW[style], fillW, barY, isDone)
   const track = trackOf(s, barY, BAR_W)
   const fill =
-    `<g clip-path="url(#fc)"><rect class="fb" x="0" y="${barY}" width="${fillW}" height="${BAR_H}"/>${tex.body}` +
+    `<g clip-path="url(#fc)"><rect class="fb" x="0" y="${barY}" width="${fillW}" height="${BAR_H}"/>${tex.body}<rect x="0" y="${barY}" width="${fillW}" height="${BAR_H}" fill="url(#gl)"/>` +
     (isDone ? '' : style ? comet(style, head, barY, p) : `<rect class="sh" x="-40" y="${barY}" width="40" height="${BAR_H}" fill="url(#shg)"/>`) +
     '</g>'
 
@@ -328,7 +331,7 @@ export const barSvg = (s: BarSettings, r: Run, at: number, W: number, context: n
   const ticks = r.ticks
     .map(t => {
       const x = Math.max(2, Math.min(BAR_W - 2, Math.round(t.at * BAR_W)))
-      return `<rect x="${x - 0.75}" y="${barY + 1}" width="1.5" height="${BAR_H - 2}" fill="${KIND_COLOR[t.kind]}" fill-opacity=".85"/>`
+      return `<rect x="${x - 0.5}" y="${barY + 3}" width="1" height="${BAR_H - 6}" rx=".5" fill="${KIND_COLOR[t.kind]}" fill-opacity=".7"/>`
     })
     .join('')
 
@@ -362,6 +365,7 @@ ${style && !isDone ? cometCss(style) : ''}
 ${PARTICLE_CSS}
 </style>
 <defs>
+<linearGradient id="gl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".45" stop-color="#fff" stop-opacity=".06"/><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></linearGradient>
 <linearGradient id="shg"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
 ${style ? cometDefs(style) : ''}
 ${tex.defs}
