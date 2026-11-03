@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { CRAB_BOX_H, crewPane, crewStrip, summaryOf, visibleCrew } from './crew-view'
+import { CRAB_BOX_H, CRAB_BOX_W, crabCard, crewPane, statusLine, visibleCrew } from './crew-view'
 import { barSvg, barText, heightOf, historySvg, panelSvg } from './draw'
 import {
   DEFAULTS,
@@ -93,15 +93,9 @@ const readCrew = async ($: EngineInterface): Promise<{ all: CrewAgent[]; current
   return { all, current, at: typeof tick.value === 'number' ? tick.value : 0 }
 }
 
-// The crew's crabs drawn into the bar's own SVG, in a strip above it: no row and no
-// background of their own. The bar's drawing moves down to make room.
-const CREW_TOP = CRAB_BOX_H + 2
-const withCrew = (svg: string, W: number, H: number, crew: readonly CrewAgent[], at: number): string => {
-  const strip = crewStrip(crew, at, W, MAX_CREW)
-  const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '')
-  const total = H + CREW_TOP
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${total}" viewBox="0 0 ${W} ${total}"><style>${strip.css}</style>${strip.body}<g transform="translate(0,${CREW_TOP})">${inner}</g></svg>`
-}
+// The crew floats over the band, above the bar's window at its right: a Box placed
+// absolutely paints over the rows above without moving them. Offsets are in rows.
+const CREW_LIFT = -3
 
 const openCrew = async ($: EngineInterface, id: string) => {
   await update($, crewSelected, () => id)
@@ -263,12 +257,21 @@ export const register: Register = on => {
       const width = Math.max(180, Math.min(2400, Math.floor((e.props.bodyColumns || 100) * 8.6) - 84))
       const barH = heightOf(s)
       const bar = barSvg(s, r, at, width, pct < 0 ? null : pct, sinceEnd)
-      const hasCrew = shown.length > 0
-      const source = hasCrew ? withCrew(bar, width, barH, crew, crewAt) : bar
-      const svgH = barH + (hasCrew ? CREW_TOP : 0)
-      const crewButton = hasCrew ? (
-        <Button key="mandribar-crew" label={`🦀 ${crew.length}`} plain onPress={() => void openCrew($, crew[crew.length - 1]?.id ?? '')} />
-      ) : null
+      const svgH = barH
+      // Each crab: hover for its tooltip; its "details" button shows under it while hovered.
+      const floatingCrew =
+        shown.length > 0 ? (
+          <Box position="absolute" top={CREW_LIFT} right={0} flexDirection="row" gap={1}>
+            {shown.map(a => (
+              <Box key={`mandribar-crew-${a.id}`} position="relative" flexDirection="column" alignItems="center">
+                <Svg source={crabCard(a, crewAt)} alt={`${a.type}: ${a.description}, ${statusLine(a)}`} width={CRAB_BOX_W} height={CRAB_BOX_H} isInteractive />
+                <Box position="absolute" top={2} display="none" hover={{ display: 'flex' }}>
+                  <Button key={`mandribar-crew-open-${a.id}`} label="details" plain onPress={() => void openCrew($, a.id)} />
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        ) : null
       // The row's panel sits behind it, drawn first and placed absolutely, so the row draws over it.
       const hasPanel = s.panelStyle !== 'none'
       const rowW = width + 84
@@ -282,18 +285,12 @@ export const register: Register = on => {
             </Box>
           )}
           <Box position="relative" flexDirection="row" alignItems="center" gap={1} paddingX={hasPanel ? 1 : 0} paddingY={hasPanel ? 0.5 : 0}>
-            <Svg
-              source={source}
-              alt={`Prompt progress: ${statsText(r, at)}${hasCrew ? `; ${summaryOf(crew)}` : ''}`}
-              width={width}
-              height={svgH}
-              isInteractive={hasCrew || undefined}
-            />
-            {crewButton}
+            <Svg source={bar} alt={`Prompt progress: ${statsText(r, at)}`} width={width} height={svgH} />
             {gear}
             {dismiss}
           </Box>
           </Box>
+          {floatingCrew}
           {below}
         </Box>
       )
