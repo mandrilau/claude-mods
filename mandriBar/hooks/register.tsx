@@ -93,9 +93,27 @@ const readCrew = async ($: EngineInterface): Promise<{ all: CrewAgent[]; current
   return { all, current, at: typeof tick.value === 'number' ? tick.value : 0 }
 }
 
-// The crew floats over the band, above the bar's window at its right: a Box placed
-// absolutely paints over the rows above without moving them. Offsets are in rows.
-const CREW_LIFT = -3
+// The crew's crabs in a row, right-aligned: hover one for its tooltip and a
+// "details" button beside it that opens its work. Drawn on the Spinner row, just
+// above the bar's window, while a turn runs; inside the window above the bar otherwise.
+type Ui = ReturnType<EngineInterface['ui']['resolve']>
+function crewRow($: EngineInterface, ui: Ui, crew: readonly CrewAgent[], at: number) {
+  const { Box, Button } = ui
+  if (!('Svg' in ui)) return null
+  const { Svg } = ui
+  return (
+    <Box flexDirection="row" justifyContent="flex-end" alignItems="center" gap={1}>
+      {crew.slice(-MAX_CREW).map(a => (
+        <Box key={`mandribar-crew-${a.id}`} flexDirection="row" alignItems="center">
+          <Svg source={crabCard(a, at)} alt={`${a.type}: ${a.description}, ${statusLine(a)}`} width={CRAB_BOX_W} height={CRAB_BOX_H} isInteractive />
+          <Box display="none" hover={{ display: 'flex' }}>
+            <Button key={`mandribar-crew-open-${a.id}`} label="details" plain onPress={() => void openCrew($, a.id)} />
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  )
+}
 
 const openCrew = async ($: EngineInterface, id: string) => {
   await update($, crewSelected, () => id)
@@ -258,26 +276,15 @@ export const register: Register = on => {
       const barH = heightOf(s)
       const bar = barSvg(s, r, at, width, pct < 0 ? null : pct, sinceEnd)
       const svgH = barH
-      // Each crab: hover for its tooltip; its "details" button shows under it while hovered.
-      const floatingCrew =
-        shown.length > 0 ? (
-          <Box position="absolute" top={CREW_LIFT} right={0} flexDirection="row" gap={1}>
-            {shown.map(a => (
-              <Box key={`mandribar-crew-${a.id}`} position="relative" flexDirection="column" alignItems="center">
-                <Svg source={crabCard(a, crewAt)} alt={`${a.type}: ${a.description}, ${statusLine(a)}`} width={CRAB_BOX_W} height={CRAB_BOX_H} isInteractive />
-                <Box position="absolute" top={2} display="none" hover={{ display: 'flex' }}>
-                  <Button key={`mandribar-crew-open-${a.id}`} label="details" plain onPress={() => void openCrew($, a.id)} />
-                </Box>
-              </Box>
-            ))}
-          </Box>
-        ) : null
+      // While a turn runs the crabs ride the Spinner row above this window; otherwise they sit here, above the bar.
+      const crewHere = shown.length > 0 && !e.props.isWorking ? crewRow($, ui, shown, crewAt) : null
       // The row's panel sits behind it, drawn first and placed absolutely, so the row draws over it.
       const hasPanel = s.panelStyle !== 'none'
       const rowW = width + 84
       const rowH = svgH + 8
       return (
         <Box flexDirection="column">
+          {crewHere}
           <Box flexDirection="column">
           {hasPanel && (
             <Box position="absolute" top={0} left={0}>
@@ -290,7 +297,6 @@ export const register: Register = on => {
             {dismiss}
           </Box>
           </Box>
-          {floatingCrew}
           {below}
         </Box>
       )
@@ -306,6 +312,23 @@ export const register: Register = on => {
           {dismiss}
         </Box>
         {below}
+      </Box>
+    )
+  })
+
+  // The working row above the bar's window: the engine's words on the left, the crew's crabs on the right.
+  on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    if (e.surface === 'terminal') return next(e)
+    const ui = $.ui.resolve(e)
+    const { current } = await readCrew($)
+    if (current.length === 0 || !('Svg' in ui)) return next(e)
+    const { Box, Text } = ui
+    const words = `${e.props.message ?? e.props.word}${e.props.suffix}`
+    const at = Math.max(await $.clock.now(), ...current.map(a => a.startedAt))
+    return (
+      <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+        <Text dimColor>{words}</Text>
+        {crewRow($, ui, current, at)}
       </Box>
     )
   })
