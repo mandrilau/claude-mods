@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { CRAB_BOX_H, CRAB_BOX_W, crabCard, crewPane, shortName, statusLine } from './crew-view'
+import { CRAB_BOX_H, crewPane, crewStrip, summaryOf } from './crew-view'
 import { barSvg, barText, heightOf, historySvg, panelSvg } from './draw'
 import {
   DEFAULTS,
@@ -92,6 +92,16 @@ const readCrew = async ($: EngineInterface): Promise<{ all: CrewAgent[]; current
   const all = Array.isArray(raw) ? (raw as CrewAgent[]) : []
   const current = all.filter(a => a.promptId === prompt.value)
   return { all, current, at: typeof tick.value === 'number' ? tick.value : 0 }
+}
+
+// The crew's crabs drawn into the bar's own SVG, in a strip above it: no row and no
+// background of their own. The bar's drawing moves down to make room.
+const CREW_TOP = CRAB_BOX_H + 2
+const withCrew = (svg: string, W: number, H: number, crew: readonly CrewAgent[], at: number): string => {
+  const strip = crewStrip(crew, at, W, MAX_CREW)
+  const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '')
+  const total = H + CREW_TOP
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${total}" viewBox="0 0 ${W} ${total}"><style>${strip.css}</style>${strip.body}<g transform="translate(0,${CREW_TOP})">${inner}</g></svg>`
 }
 
 const openCrew = async ($: EngineInterface, id: string) => {
@@ -252,28 +262,20 @@ export const register: Register = on => {
       const crewAt = Math.max(at, ...crew.map(a => a.startedAt))
       // The desktop draws about 8.6px per reported column; ⚙ and ✕ take about 84px. The bar takes the rest.
       const width = Math.max(180, Math.min(2400, Math.floor((e.props.bodyColumns || 100) * 8.6) - 84))
-      const crabs = shown.map(a => (
-        <Box key={`mandribar-crew-${a.id}`} flexDirection="column" alignItems="center">
-          <Svg source={crabCard(a, crewAt)} alt={`${a.type}: ${a.description}, ${statusLine(a)}`} width={CRAB_BOX_W} height={CRAB_BOX_H} isInteractive />
-          {/* Only the crab shows; its name button appears over the row below while the crab is hovered. */}
-          <Box position="absolute" top={2} display="none" hover={{ display: 'flex' }}>
-            <Button key={`mandribar-crew-open-${a.id}`} label={shortName(a)} plain onPress={() => void openCrew($, a.id)} />
-          </Box>
-        </Box>
-      ))
+      const barH = heightOf(s)
+      const bar = barSvg(s, r, at, width, pct < 0 ? null : pct, sinceEnd)
+      const hasCrew = shown.length > 0
+      const source = hasCrew ? withCrew(bar, width, barH, crew, crewAt) : bar
+      const svgH = barH + (hasCrew ? CREW_TOP : 0)
+      const crewButton = hasCrew ? (
+        <Button key="mandribar-crew" label={`🦀 ${crew.length}`} plain onPress={() => void openCrew($, crew[crew.length - 1]?.id ?? '')} />
+      ) : null
       // The row's panel sits behind it, drawn first and placed absolutely, so the row draws over it.
       const hasPanel = s.panelStyle !== 'none'
       const rowW = width + 84
-      const rowH = heightOf(s) + 8
+      const rowH = svgH + 8
       return (
         <Box flexDirection="column">
-          {/* The crew sits in its own row above the bar, at the right. */}
-          {shown.length > 0 && (
-            <Box flexDirection="row" justifyContent="flex-end" alignItems="flex-end" gap={1}>
-              {crew.length > shown.length && <Text dimColor>+{crew.length - shown.length}</Text>}
-              {crabs}
-            </Box>
-          )}
           <Box flexDirection="column">
           {hasPanel && (
             <Box position="absolute" top={0} left={0}>
@@ -282,11 +284,13 @@ export const register: Register = on => {
           )}
           <Box position="relative" flexDirection="row" alignItems="center" gap={1} paddingX={hasPanel ? 1 : 0} paddingY={hasPanel ? 0.5 : 0}>
             <Svg
-              source={barSvg(s, r, at, width, pct < 0 ? null : pct, sinceEnd)}
-              alt={`Prompt progress: ${statsText(r, at)}`}
+              source={source}
+              alt={`Prompt progress: ${statsText(r, at)}${hasCrew ? `; ${summaryOf(crew)}` : ''}`}
               width={width}
-              height={heightOf(s)}
+              height={svgH}
+              isInteractive={hasCrew || undefined}
             />
+            {crewButton}
             {gear}
             {dismiss}
           </Box>
