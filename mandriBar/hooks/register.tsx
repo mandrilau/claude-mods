@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { CRAB_BOX_H, crewPane, crewStrip, summaryOf } from './crew-view'
+import { CRAB_BOX_H, crewPane, crewStrip, summaryOf, visibleCrew } from './crew-view'
 import { barSvg, barText, heightOf, historySvg, panelSvg } from './draw'
 import {
   DEFAULTS,
@@ -85,12 +85,11 @@ const PALETTE: readonly (readonly string[])[] = [
 const readCrew = async ($: EngineInterface): Promise<{ all: CrewAgent[]; current: CrewAgent[]; at: number }> => {
   const none = { value: undefined }
   const agents: { value?: unknown } = await $.state.get({ plugin: 'mandricrew', key: 'agents' } as const).catch(() => none)
-  const prompt: { value?: unknown } = await $.state.get({ plugin: 'mandricrew', key: 'promptId' } as const).catch(() => none)
   const tick: { value?: unknown } = await $.state.get({ plugin: 'mandricrew', key: 'now' } as const).catch(() => none)
   // A shaped value reads back wrapped as { shape, value }.
   const raw = agents.value && typeof agents.value === 'object' && 'value' in agents.value ? (agents.value as { value: unknown }).value : agents.value
   const all = Array.isArray(raw) ? (raw as CrewAgent[]) : []
-  const current = all.filter(a => a.promptId === prompt.value)
+  const current = visibleCrew(all, await $.clock.now())
   return { all, current, at: typeof tick.value === 'number' ? tick.value : 0 }
 }
 

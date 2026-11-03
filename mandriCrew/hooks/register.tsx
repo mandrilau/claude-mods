@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { CRAB_BOX_H, CRAB_BOX_W, clip, crabCard, crewPane, shortName, statusLine, summaryOf } from './view'
+import { CRAB_BOX_H, CRAB_BOX_W, clip, crabCard, crewPane, shortName, statusLine, summaryOf, visibleCrew } from './view'
 import type { Activity, AgentStatus, CrewAgent, ToolUse } from '../types'
 
 const PANE = 'mandricrew-details'
@@ -184,8 +184,7 @@ export const register: Register = on => {
 
   // Its own row, only when mandriBar is not drawing the crabs on its bar.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const prompt = await read($, promptId)
-    const list = (await read($, agents)).filter(a => a.promptId === prompt)
+    const list = visibleCrew(await read($, agents), await $.clock.now())
     if (list.length === 0 || e.props.hasSurvey || (await read($, isHidden)) || (await isOnBar($))) return next(e)
     const drawn = await Promise.resolve(next(e)).catch(() => null)
     const below = drawn && typeof drawn === 'object' && (drawn as { type?: string }).type !== 'engine' ? drawn : null

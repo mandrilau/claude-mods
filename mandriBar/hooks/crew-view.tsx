@@ -34,6 +34,20 @@ const STATUS_WORD = { running: 'Working', done: 'Done', failed: 'Failed' } as co
 
 export const shortName = (a: CrewAgent): string => clip(a.type === 'general-purpose' ? 'agent' : a.type.replace(/^.*:/, ''), 9)
 
+// The crabs worth showing: the latest batch of agents (those of the newest
+// agent's prompt) plus any still working, while one works and for a minute after
+// the last one ends. Background agents report in later turns, so a batch is never
+// tied to the turn running now.
+export const CREW_LINGER_MS = 60000
+export const visibleCrew = (list: readonly CrewAgent[], at: number): CrewAgent[] => {
+  const newest = list[list.length - 1]
+  if (!newest) return []
+  const batch = list.filter(a => a.promptId === newest.promptId || a.status === 'running')
+  if (batch.some(a => a.status === 'running')) return batch
+  const lastEnd = Math.max(...batch.map(a => a.endedAt))
+  return at - lastEnd < CREW_LINGER_MS ? batch : []
+}
+
 export const summaryOf = (list: readonly CrewAgent[]): string => {
   const running = list.filter(a => a.status === 'running').length
   const n = `${list.length} agent${list.length === 1 ? '' : 's'}`
