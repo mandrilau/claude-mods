@@ -164,28 +164,48 @@ export const KIND_LABEL: Record<Activity, string> = {
 }
 
 // ---------------------------------------------------------------------------
-// Progress. A prompt has no known length, so the bar eases toward 95%; the
-// pace comes from how long past prompts took, and each tool call counts as a
-// few seconds of work. The rest fills when the turn ends.
+// Progress. A prompt has no known length, and lengths spread from seconds to
+// an hour, so the bar moves on a log scale of time: as far from 10s to 100s as
+// from 100s to 1000s. It is calibrated by past prompts: the typical one (the
+// median) and the long tail (the horizon, where the bar reaches 95%). Each tool
+// call counts as a couple of seconds of work. The rest fills when the turn ends.
 
 const DEFAULT_EXPECTED = 45
 
+const DEFAULT_HORIZON = 15 * 60
+
+// The finished prompts' durations, sorted, from the last 30.
+const pastSecs = (history: readonly PastRun[]): number[] =>
+  history.filter(h => h.reason === 'answer').slice(-30).map(h => h.secs).sort((a, b) => a - b)
+
 // The median of the last finished prompts, in seconds; a default until there are five.
 export const expectedOf = (history: readonly PastRun[]): number => {
-  const secs = history.filter(h => h.reason === 'answer').slice(-20).map(h => h.secs).sort((a, b) => a - b)
+  const secs = pastSecs(history)
   if (secs.length < 5) return DEFAULT_EXPECTED
   const mid = secs[Math.floor(secs.length / 2)] ?? DEFAULT_EXPECTED
   return Math.max(8, Math.min(600, mid))
+}
+
+// Where the bar reaches 95%: half again past the 90th-percentile prompt, at least
+// 10 minutes and three typical prompts, at most 3 hours.
+export const horizonOf = (history: readonly PastRun[]): number => {
+  const secs = pastSecs(history)
+  if (secs.length < 5) return DEFAULT_HORIZON
+  const p90 = secs[Math.min(secs.length - 1, Math.floor(secs.length * 0.9))] ?? DEFAULT_HORIZON
+  return Math.max(600, 3 * expectedOf(history), Math.min(3 * 3600, p90 * 1.5))
 }
 
 export const progressOf = (r: Run, at: number): number => {
   // A finished prompt fills the bar; a stopped or failed one stays where it ended.
   if (r.endedAt && r.reason === 'answer') return 1
   const end = r.endedAt || at
-  const secs = Math.max(0, (end - r.startedAt) / 1000) + r.tools * 3
-  // At the expected time the bar stands at 80%.
-  const tau = Math.max(4, r.expected) / 1.83
-  return Math.max(0.03, 0.95 * (1 - Math.exp(-secs / tau)))
+  const secs = Math.max(0, (end - r.startedAt) / 1000) + r.tools * 2
+  const scale = Math.max(4, r.expected) / 3
+  const horizon = Math.max(r.horizon || DEFAULT_HORIZON, r.expected * 2)
+  const p = (0.95 * Math.log1p(secs / scale)) / Math.log1p(horizon / scale)
+  // Past the horizon it creeps toward 98%, never quite full until the turn ends.
+  const tail = secs > horizon ? 0.03 * (1 - Math.exp(-(secs - horizon) / horizon)) : 0
+  return Math.max(0.02, Math.min(0.95, p) + tail)
 }
 
 // No tool event for this long while running: the crab dozes.

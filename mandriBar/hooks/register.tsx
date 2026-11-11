@@ -21,6 +21,7 @@ import {
   cleanStats,
   duration,
   expectedOf,
+  horizonOf,
   isUnlocked,
   kindOf,
   levelOf,
@@ -41,7 +42,7 @@ const CHIME = 'assets/chime.wav'
 const LONG_MS = 60000
 const MAX_TICKS = 80
 
-const run = atom({ plugin: 'mandribar', key: 'run' } as const, null, { shape: 'run-2' })
+const run = atom({ plugin: 'mandribar', key: 'run' } as const, null, { shape: 'run-3' })
 const now = atom({ plugin: 'mandribar', key: 'now' } as const, 0)
 const settings = atom({ plugin: 'mandribar', key: 'settings' } as const, DEFAULTS, { shape: 'settings-7' })
 const stats = atom({ plugin: 'mandribar', key: 'stats' } as const, EMPTY_STATS, { shape: 'stats-1' })
@@ -170,7 +171,9 @@ export const register: Register = on => {
   on('turn.start', async ($, e, next) => {
     if (!e.agentId) {
       const at = await $.clock.now()
-      const expected = expectedOf((await read($, stats)).history)
+      const history = (await read($, stats)).history
+      const expected = expectedOf(history)
+      const horizon = horizonOf(history)
       await update($, run, () => ({
         turnId: e.turnId,
         startedAt: at,
@@ -182,6 +185,7 @@ export const register: Register = on => {
         isWaiting: false,
         lastEventAt: at,
         expected,
+        horizon,
       }))
       await update($, now, () => at)
       await update($, isHidden, () => false)
@@ -389,6 +393,7 @@ export const register: Register = on => {
       isWaiting: false,
       lastEventAt: 13000,
       expected: 30,
+      horizon: 600,
     }
     const previews: [string, Run, number][] = [
       ['Working', base, Infinity],

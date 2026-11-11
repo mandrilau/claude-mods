@@ -53,6 +53,8 @@ export type Run = {
   lastEventAt: number
   // How long this prompt is expected to take, in seconds, from past prompts.
   expected: number
+  // Where the bar reaches 95%, in seconds, from past prompts' long tail.
+  horizon: number
 }
 
 // A finished prompt, for the history chart and the estimate.
